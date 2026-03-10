@@ -19,12 +19,10 @@ class Ball {
     }
     move() {
         this.x += this.speedX; this.y += this.speedY;
-        // Rebote en bordes superior e inferior
         if (this.y - this.radius <= 0 || this.y + this.radius >= canvas.height) this.speedY = -this.speedY;
     }
     reset() {
         this.x = canvas.width / 2; this.y = canvas.height / 2;
-        // Mantener dirección aleatoria pero velocidad controlada
         this.speedX = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 3);
         this.speedY = (Math.random() - 0.5) * 10;
     }
@@ -46,7 +44,6 @@ class Paddle {
         if (this.flashFrames > 0) this.flashFrames--;
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        // Barras de energía laterales
         const barX = this.isLeft ? this.x - 15 : this.x + this.width + 7;
         const energyHeight = (this.energy / this.maxEnergy) * canvas.height;
         ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
@@ -75,24 +72,20 @@ class Paddle {
     }
 
     autoMove(balls) {
-        // IA NERFEADA: Solo reacciona si la bola está en su lado del campo
         let incomingBalls = balls.filter(b => b.speedX > 0 && b.x > canvas.width / 2.5);
         if (incomingBalls.length === 0) { this.updateEnergy(false); return; }
         
         let targetBall = incomingBalls.reduce((prev, curr) => (curr.x > prev.x ? curr : prev));
         let center = this.y + this.height / 2;
         
-        // Zona muerta grande (35px) para que la IA sea imprecisa
         if (Math.abs(targetBall.y - center) < 35) {
             this.updateEnergy(false);
             return;
         }
 
-        // Solo hace Dash si tiene mucha energía (>60)
         let shouldDash = Math.abs(targetBall.y - center) > 110 && this.energy > 60;
         this.updateEnergy(shouldDash, 2.0);
         
-        // Velocidad de movimiento reducida (0.55)
         let moveSpeed = shouldDash ? this.speed * 1.5 : this.speed * 0.55;
         if (targetBall.y < center) this.y -= moveSpeed;
         else this.y += moveSpeed;
@@ -112,9 +105,8 @@ class Game {
     init() {
         if (this.timerReference) clearInterval(this.timerReference);
         
-        // Colores: Azul (Izquierda), Rojo/Morado (Derecha)
-        const colorLeft = "#3333FF"; 
-        const colorRight = this.isPVP ? "#FF3333" : "#FF33FF";
+        const colorLeft = "#3333FF"; // Azul
+        const colorRight = this.isPVP ? "#FF3333" : "#FF33FF"; // Rojo o Morado
         
         this.paddle1 = new Paddle(25, canvas.height/2 - paddleHeight, paddleWidth, paddleHeight * 2, colorLeft, true);
         this.paddle2 = new Paddle(canvas.width - 35, canvas.height/2 - (this.isPVP ? paddleHeight : paddleHeight/2), paddleWidth, this.isPVP ? paddleHeight * 2 : paddleHeight, colorRight, false);
@@ -137,7 +129,7 @@ class Game {
     createBalls() {
         const colors = ['#FF5555', '#55FF55', '#5555FF', '#FFFF55', '#FF55FF'];
         for (let i = 0; i < 5; i++) {
-            const radius = 6 + (i * 2.5); // Diferentes tamaños
+            const radius = 6 + (i * 2.5);
             this.balls.push(new Ball(canvas.width / 2, canvas.height / 2, radius, 0, 0, colors[i]));
             this.balls[i].reset();
         }
@@ -148,7 +140,6 @@ class Game {
     draw() {
         ctx.fillStyle = "black"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Marcador gigante de fondo
         ctx.font = "150px Arial"; ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.textAlign = "center";
         ctx.fillText(this.score1, canvas.width / 4, canvas.height / 2 + 50);
         ctx.fillText(this.score2, (canvas.width / 4) * 3, canvas.height / 2 + 50);
@@ -159,7 +150,6 @@ class Game {
         ctx.font = "18px Arial"; ctx.fillStyle = "white";
         ctx.fillText(this.isPVP ? "PVP: AZUL (W/S + L-Shift) | ROJO (↑/↓ + M)" : "VS IA: AZUL (W/S o ↑/↓ + L-Shift)", canvas.width / 2, 30);
 
-        // Efectos de explosión Smash
         this.smashEffects.forEach((eff, i) => {
             ctx.save(); ctx.translate(eff.x, eff.y); ctx.strokeStyle = eff.color; ctx.lineWidth = 4;
             for(let j=0; j<8; j++) { ctx.rotate(Math.PI/4); ctx.beginPath(); ctx.moveTo(eff.size,0); ctx.lineTo(eff.size+40,0); ctx.stroke(); }
@@ -180,8 +170,7 @@ class Game {
     update() {
         if (this.isCounting || this.gameOver) return;
 
-        // --- CONTROLES P1 (AZUL) ---
-        const p1Dash = this.keys['ShiftLeft']; // Solo Shift Izquierdo
+        const p1Dash = this.keys['ShiftLeft']; 
         if (this.keys['w'] || this.keys['W'] || (!this.isPVP && this.keys['ArrowUp'])) {
             this.paddle1.applyMove('up', p1Dash);
         } else if (this.keys['s'] || this.keys['S'] || (!this.isPVP && this.keys['ArrowDown'])) {
@@ -190,7 +179,6 @@ class Game {
             this.paddle1.updateEnergy(false);
         }
 
-        // --- CONTROLES P2 (ROJO o IA) ---
         if (this.isPVP) {
             const p2Dash = this.keys['m'] || this.keys['M'];
             if (this.keys['ArrowUp']) this.paddle2.applyMove('up', p2Dash);
@@ -200,10 +188,8 @@ class Game {
             this.paddle2.autoMove(this.balls);
         }
 
-        // Lógica de colisiones y puntos
         this.balls.forEach(ball => {
             ball.move();
-            // Colisión Izquierda (Coyote Time incluido)
             if (ball.speedX < 0 && ball.x - ball.radius <= this.paddle1.x + this.paddle1.width && ball.x - ball.radius >= this.paddle1.x - 10) {
                 if (ball.y >= this.paddle1.y - 15 && ball.y <= this.paddle1.y + this.paddle1.height + 15) {
                     ball.speedX = Math.abs(ball.speedX) * 1.035; 
@@ -211,7 +197,6 @@ class Game {
                     this.paddle1.hitEffect();
                 }
             }
-            // Colisión Derecha
             if (ball.speedX > 0 && ball.x + ball.radius >= this.paddle2.x && ball.x + ball.radius <= this.paddle2.x + 10) {
                 if (ball.y >= this.paddle2.y - 15 && ball.y <= this.paddle2.y + this.paddle2.height + 15) {
                     ball.speedX = -Math.abs(ball.speedX) * 1.035; 
@@ -219,18 +204,21 @@ class Game {
                     this.paddle2.hitEffect();
                 }
             }
-            // Puntos
             if (ball.x < 0) { this.score2++; this.triggerSmashEffect(0, ball.y, ball.color); ball.reset(); }
             else if (ball.x > canvas.width) { this.score1++; this.triggerSmashEffect(canvas.width, ball.y, ball.color); ball.reset(); }
         });
 
-        // Condición de victoria
         if (this.score1 >= 50) { this.gameOver = true; this.winner = "AZUL"; }
         if (this.score2 >= 50) { this.gameOver = true; this.winner = this.isPVP ? "ROJO" : "MORADO"; }
     }
 
     handleInput() {
         window.addEventListener('keydown', (e) => { 
+            // PREVENT DEFAULT PARA EVITAR SCROLL EN GITHUB
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+
             if (e.code === 'ShiftLeft') this.keys['ShiftLeft'] = true;
             else this.keys[e.key] = true;
             if (e.key.toLowerCase() === 'r') this.init(); 
@@ -248,6 +236,5 @@ class Game {
     }
 }
 
-// Iniciar juego
 const game = new Game();
 game.run();
